@@ -1,0 +1,94 @@
+Dialog : 컨트롤의 컨테이너
+Modal : 대화상자를 닫기 전에 다른 윈도우로 전환 불가
+Modaless : 다른 윈도우로 전환 가능
+
+1. Dialog의 프로시저는 메인 윈도우의 WndProc 프로시저의 반환 타입과 달리 반환 타입이 INT_PTR이다.
+2. WndProc에서 관심없는 메시지는 DefWindowProc() 에서 처리하지만 DlgProc에서는 FALSE를 반환한다.
+3. 초기화는 WM_CREATE가 아닌 WM_INITDIALOG에서 처리한다.
+4. 일반 윈도우와 동일하게 LOWORD(wParam)에서 메시지를 보낸 컨트롤의 ID가 전달되며 (HIWORD)wParam에서 통지 코드가 전달된다.
+5. 종료 시 EndDialog() 함수를 호출하여 종료한다. (두번째 인수인 nResult는 대화상자를 호출한 DialogBox 함수의 리턴값으로 전달됨)
+(보통 리턴값으로는 취소 여부를 리턴함. 근대 보통 리턴값에 관심을 갖지 않음)
+
+IDCANCEL의 경우 시스템 메뉴인 x버튼과 실제 CANCEL 버튼 처리를 맡아서 함
+
+계속 이야기하는 것이지만, 윈도우 생성 시 부모 윈도우를 NULL로 지정한다는 의미는 HWND_DESKTOP으로 지정하는 것과 동일.
+즉, 부모 윈도우는 DESKTOP이 된다는 의미이다.
+
+GetDlgItem() : 컨트롤의 윈도우 핸들을 구하는 함수
+윈도우 핸들을 구하게 되면 GetWindowText()함수로 컨트롤의 내용을 읽을 수 있고
+SetWindowText()로 변경할 수도 있다.
+
+GetDlgCtrlID() : 윈도우 핸들로부터 ID를 구하는데 사용빈도는 높지 않음
+
+보통 차일드 컨트롤을 프로그래밍하는 주된 방법이 SendMessage 함수로 메시지를 보내는 것인데
+이 함수는 대상 윈도우의 핸들을 요구한다. 
+만약 ID만 알고 있다면 다음 방식으로 컨트롤의 핸들을 구해 메시지를 보낼 수 있다.
+SendMessage(GetDlgItem(), ...)
+
+이 두 호출문을 합친 함수가 SendDlgItemMessage(HWND hDlg, int nID, UINT Msg, WPARAM wParam, LPARAM lParam);
+GetDlgItem()과 SendMessage를 호출하는 래퍼함수
+
+GetDlgItemText(), SetDlgItemText() 두 함수 모두 두번째 인자에서 자식 컨트롤의 ID를 요구.
+자식 컨트롤의 ID는 윈도우 핸들을 알고있다면 GetDlgCtrlID()를 통해 얻어올 수 있다.
+
+GetDlgItemInt(), SetDlgItemInt()
+GetDlgItemInt()는 해당 컨트롤에 입력된 정수값을 읽어 리턴하되 
+네 번째 인수 bSigned가 TRUE일 경우는 부호있는 정수값을 읽고 FALSE일 경우는
+부호를 무시하고 무조건 양수로 읽는다.
+(컨트롤로 부터 정수값을 읽을때는 항상 에러가 발생할 소지가 있음.)
+예를 들면 에디트 컨트롤에 숫자 이외에 문자가 있거나 숫자가 너무 클 경우 등
+이런경우 세번째 인수를 통해 Error가 있었는지 없었는지를 확인할 수 있다.
+(Error검사를 할 필요가 없을 때는 NULL로 주면 된다.)
+
+
+BOOL CheckDlgButton()
+UINT IsDlgButtonChecked()
+두 함수는 체크박스나 라디오 버튼 등에 값을 대입하고 다시 읽어들이는 함수
+ex) 
+IDC_BOLD라는 체크박스에 bBold라는 값에 따라 체크/언체크 하고 싶다면
+CheckDlgButton(hDlg, IDC_BOLD, bBold ? BST_CHECKED : BST_UNCHECKED);
+
+체크 여부를 얻어올 때
+bBold = (IsDlgButtonChecked(hDlg, IDC_BOLD) == BST_CHECKED)
+
+
+위의 두 함수는 사실 SendMessage의 변형 함수이다.
+SendMessage(GetDlgItem(hDlg, IDC_BOLD), BM_SETCHECK, uCheck, 0); (uCheck = BST_CHECKED 또는 BST_UNCHECKED)
+SendMessage(GetDlgItem(hDlg, IDC_BOLD), BM_GETCHECK, 0, 0);
+
+위의 함수를 좀 더 간단한 형식으로 쓰면
+SendDlgItemMessage(hDlg, IDC_BOLD, BM_SETCHECK, uCheck, 0);
+SendDlgItemMessage(hDlg, IDC_BOLD, BM_GETCHECK, 0, 0);
+
+※ 이게 꼭 다이얼로그에서만 쓸 수 있는게 아니라 일반 윈도우의 차일드에서도 쓸 수 있다.
+
+CreateDialog() : ModalLess 다이얼로그
+WS_VISIBLE 속성을 주지 않으면 ShowWindow() 함수를 호출해야 함
+
+IsWindow(HWND) : 윈도우 핸들이 유효한 핸들인지 조사하는 함수
+
+if (!IsWindow(hMDlg) || !IsDialogMessage(hMDlg, &Message))
+{
+	TranslateMessage(&Message);
+	DispatchMessage(&Message);
+}
+
+이렇게 하면 Modaless 다이얼로그의 핸들값이 유효한지(다이얼로그가 띄어져 있을 때)를 체크해서
+Modaless 다이얼로그가 유효하면 메시지처리를 메인 윈도우에서 하지 않는다.
+
+입력 장치로부터의(예를 들면 키보드) 입력값을 Translate해서 DispatchMessage를 통해 메인 프로시저로 보내는 것이 아니라
+IsDialogMessage()함수를 통해 Modaless Dialog에 등록한 프로시저에서 처리하게된다.
+
+IsDialogMessage()는 메시지 점검 후 Dialog와 관련된 메시지이면 이 메시지를 처리한 후 TRUE를 리턴하고
+Dialog와 전혀 상관이 없는 메시지라면 FALSE를 리턴한다.
+
+
+[과제 SimplePaint2]
+7장 SimplePaint 예제의 그리기 옵션인 색상과 굵기값 선택 컨트롤들을 대화상자로 옮겨 보아라.
+메인 윈도우는 흰색 바탕의 캔버스로만 구성하고 옵션은 오른쪽 마우스 버튼을 누를 때 대화상자를 열어 선택받는다.
+화면을 지우는 기능은 옵션이 아니라 명령이므로 대화상자로 옮기는 것은 부적합하며
+공백키가 입력되었을 때 지우는 것으로 한다.
+
+[과제 SimplePaint3]
+색상 및 굵기 선택 대화상자를 모델리스로 만들고 여기서 옵션을 변경하면 즉시 색상이 바뀌도록 해 보아라.
+모델리스 대화상자는 정보를 묻기만 하는 것이 아니라 항상 열려져 있으므로 모두 지우기 버튼이 있어도 상관없다.

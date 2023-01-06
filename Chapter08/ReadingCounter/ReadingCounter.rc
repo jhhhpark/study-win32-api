@@ -1,0 +1,115 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Korean (Korea) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_KOR)
+LANGUAGE LANG_KOREAN, SUBLANG_DEFAULT
+#pragma code_page(949)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""winres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_READING DIALOGEX 0, 0, 195, 110
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    PUSHBUTTON      "닫기",IDCANCEL,132,48,50,14
+    RTEXT           "시작 페이지",IDC_STATIC,18,19,42,8
+    RTEXT           "끝 페이지",IDC_STATIC,18,36,42,8
+    RTEXT           "시간(초)",IDC_STATIC,18,54,42,8
+    EDITTEXT        IDC_EDSTART,72,12,40,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDEND,72,30,40,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDTIME,72,48,40,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "독서 시작",IDC_BTNSTART,132,12,50,14
+    PUSHBUTTON      "잠시 중지",IDC_BTNPAUSE,132,30,50,14
+    CONTROL         "페이지 바뀔 때 마다 소리로 알려 주기",IDC_CHKBEEP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,72,138,10
+    LTEXT           "범위와 시간 설정 후 시작 버튼을 누르시오.",IDC_STTIME,18,90,140,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_READING, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 188
+        TOPMARGIN, 6
+        BOTTOMMARGIN, 103
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_READING AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+#endif    // Korean (Korea) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
