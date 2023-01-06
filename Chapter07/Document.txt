@@ -1,0 +1,91 @@
+컨트롤은 차일드 윈도우 이므로 CreateWindow 시 스타일에 WS_CHILD를 반드시 추가해야 한다.
+그외에 WS_VISIBLE도 주어야 별도로 ShowWindow() 함수를 호출하지 않아도 컨트롤이 화면에 보이게 된다.
+(컨트롤 스타일은 BS_XXXX 이다.)
+부모 윈도우의 경우 hWndParent로 NULL을 주는데 이 의미는 부모 윈도우가 없다가 아닌 DeskTop이라는 의미이다.
+9번째 인수인 HMENU 부분에는 차일드 컨트롤의 ID를 작성해주면 된다.
+
+부모와의 통신 시
+HIWORD(wParam) : 통지 메시지
+LOWORD(wParam) : 컨트롤의 ID
+lParam : 메시지를 보낸 차일드 윈도우의 윈도우 핸들
+
+[Button]
+Button 예제에서 차일드 컨트롤인 button을 누르면 클릭 메시지가 발생해서 전달되고
+이를 WM_COMMAND에서 LOWORD(wParam)을 통해 차일드 컨트롤 ID로 구분하고 있다.
+사실 실제 발생하는 메시지는 HIWORD(wParam)을 보면 BN_CLICKED 메시지가 전달되는데, 버튼에서는
+따로 통지 코드 구분 없이 항상 자신을 클릭했다는 메시지를 보내므로 굳이 통지 코드를 볼 필요가 없다.
+
+
+[CheckBox]
+BS_CHECKBOX, BS_AUTOCHECKBOX, BS_3STATE, BS_AUTO3STATE
+예를 들어 hCheckBox라는 체크박스 핸들을 가진상태에서 해당 체크박스의 상태를 확인하고 싶을 때
+BM_GETCHECK
+BM_SETCHECK가 있음.
+[사용 방법]
+SendMessage(hCheckBox, BM_GETCHECK, 0, 0);					// 체크상태 반환
+
+SendMessage(hCheckBox, BM_SETCHECK, BST_CHECKED, 0);		// 체크상태가 됨
+SendMessage(hCheckBox, BM_SETCHECK, BST_CHECKED, 0);		// 체크상태 해제됨
+SendMessage(hCheckBox, BM_SETCHECK, BST_INDETERMINATE, 0);	// 3STATE일 경우
+
+
+[RadioButton]
+그룹박스를 만들어서 라디오 버튼을 화면에 이쁘게 모아준다.
+그룹박스는 단지 같은 그룹에 속하는지를 사용자에게 표시하기 위해 그룹 박스 컨트롤이 사용된것이며
+기능 없이 그저 단순 장식이다. 윈도우 생성 시 BS_GROUPBOX를 추가해주면 된다.
+
+라이도 버튼의 경우 대부분 자동을 사용하므로 BS_AUTORADIOBUTTON상수 값을 추가해주면 되고
+그룹의 첫번째 버튼에만 WS_GROUP 상수를 추가해주면 된다.
+
+[CheckRadioButton(HWND hDlg, int nIDFirst, int nIDLast, int nIDCheck);]
+2번째 인수와 3번째 인수는 바로 알수있고, 4번째 인수는 처음 클릭될 버튼의 ID를 넣어주면 된다.
+
+
+[Edit]
+Edit 스타일은 위의 Control보다 종류가 많다.
+부모 윈도우로 보내는 통지 메시지 종류도 많음. 필요시 참고
+(메인 윈도우의 클래스 이름이 이미 등록된 클래스인지 확인을 꼭 하자)
+
+
+[ListBox]
+스타일 지정 시 기본은 LBS_STANDARD이다.
+LBS_NOTIFY는 항목 선택 시 부모 윈도우로 통지 메시지를 보냄.
+
+
+[ComboBox]
+Edit + ListBox
+3가지 스타일을 제공
+CBS_SIMPLE : edit + listbox인데 리스트 박스가 항상 펼쳐짐
+CBS_DROPDOWN : edit + listbox
+CBS_DROPDOWNLIST : listbox만 가짐
+
+ListBox에서 항목 추가시 LB_ADDSTRING 메시지는 ComboBox에서 CM_ADDSTRING으로 되어있음
+
+
+[ScrollBar]
+수직 : SBS_VERT, 수평 : SBS_HORZ
+SetScroolRange(), SetScrollPos()
+다른 컨트롤들은 자신에게 변화가 생기면 부모 윈도우로 WM_COMMAND 통지 메시지를 보내는데 
+스크롤바 : WM_HSCROLL 또는 WM_VSCROLL
+이유는 WM_COMMAND로 보내는 메시지가 이미 예약되어 있어서 임.
+[인수]
+LOWORD(wParam) : 스크롤 바 내의 어디를 눌렀는가?
+HIWORD(wParam) : 현재 위치
+lParam : 스크롤 바의 윈도우 핸들
+
+TextOut과 static의 차이점은 무엇일까?
+둘다 텍스트를 출력한다는 점에서 동일하지만 
+TextOut은 출력한 문자열은 그냥 문자열일 뿐이므로 언제든지 지워질 수 있고 그래서 WM_PAINT에서 계속 복구해야 한다.
+반면 스태틱 컨트롤은 스스로 메시지를 처리할 수 있는 윈도우이므로 일단 배치하면 더이상 신경쓰지 않아도 된다.
+또한 색상, 크기, 글꼴 등 운영체제의 세팅이 바뀔 경우 이런 변화에 대해서도 스스로 대처한다는 장점이 있다.
+
+컨트롤을 잘 다루기 위해서는 1.스타일, 2.통지 메시지, 3.부모 윈도우가 보내는 메시지 이를 잘 알아야 하는데
+이를 컨트롤의 3요소라고 한다.
+
+
+
+[과제] SimplePaint
+4장의 Mouse 예제처럼 마우스로 자유 곡선을 그리되 선의 색상은 라디오 버튼으로 선택하고,
+굵기는 체크 박스로 선택하도록 하라. 다시 그리기 버튼을 제공하고 이 버튼을 누르면 화면을 모두 지우도록 한다.
+아직 화면 복구는 하지 않아도 된다. 색상이 너무 많아 실습하기 번거롭다면 빨간색, 파란색, 노란색 정도의 색상만 사용해도 상관없다.
+이 과제는 계속 확장될 예정이므로 소스는 4장의 예제에서 복사해 오더라도 프로젝트는 반드시 시로 만들고 소스를 깔끔하게 유지하는 것이 좋다.
