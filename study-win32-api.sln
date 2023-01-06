@@ -35,6 +35,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WmCreate", "Chapter04\WmCre
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WmSize", "Chapter04\WmSize\WmSize.vcxproj", "{AABE67AF-789B-4B06-912B-160CC87017C3}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{285DD245-AAD9-4C78-B28E-6BABCA1CE98C}"
+	ProjectSection(SolutionItems) = preProject
+		ApiStart.txt = ApiStart.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
