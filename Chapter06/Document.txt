@@ -1,0 +1,53 @@
+[GDI(Graphic Device Interface)]
+: 화면, 프린터 등의 모든 출력 장치를 제어하는 윈도우즈의 핵심 모듈 중 하다. 
+즉, 출력을 위한 중앙 통제 센터 정도로 생각하면 된다.
+[DC(Device Context)]
+: GDI 오브젝트를 모아놓은 것. (펜, 브러시, 폰트, 비트맵 등)
+DC에 특정 GDI 오브젝트의 속성을 설정하면, 그에 맞는 그래픽을 출력 할 수 있다.
+
+예를 들어 default pen 색상은 검정색이므로, 일반적으로 선을 그릴 때 검정색으로 그려지지만,
+파란색 선을 그리고 싶다면 DC에 파란색 펜을 선택한 후 그리면 GDI는 이 파란색 펜을 선택했으므로
+파란색 선이 그려진다.
+
+GDI 오브젝트는 내부적으로 일종의 구조체이지만, 선언이 공개되어 있지 않으므로 
+이 구조체 정보를 볼 수 없고, 볼 필요도 없다.
+GDI 오브젝트는 모두 핸들로 관리되므로 우리는 다만 GDI 오브젝트를 생성하는 함수를 부르고
+이 함수가 리턴하는 핸들을 받아서 사용하기만 하면 된다.
+GDI 오브젝트를 만들 때 핸들을 발급받으며 선택하거나 삭제할 때는 이 핸들만 가지고 GDI 오브젝트를 사용한다.
+DC가 BeginPaint나 GetDC 함수에 의해 처음 만들어졌을 때 디폴트로 선택된 GDI 오브젝트는 다음과 같다.
+
+[Default GDI 오브젝트]
+펜 : HPEN, 검정색 가는 실선
+브러시 : HBRUSH, 흰색
+폰트 : HFONT, 시스템 글꼴
+비트맵 : HBITMAP, x
+팔레트 : HPALETTE, x
+리전 : HRGN(화면상의 영역), x
+
+
+[Stock 오브젝트]
+: 스톡 오브젝트(Stock Object)는 윈도우즈가 기본적으로 제공하는 GDI 오브젝트를 의미함.
+아주 빈번하게 사용되므로 윈도우즈가 부팅 시 미리 만들어 놓는다.
+(우리가 따로 만들지 않아도 언제든지 사용되므로 따로 파괴 x)
+HGDIOBJ GetStockObject(int fnObject);
+
+
+[SetROP2(HDC hdc, int fnDrawMode) 그리기 모드 함수]
+
+[StretchBlt()] : DC간에 비트맵을 전송하는데 확대 및 축소가 가능하다는 점이 BitBlt() 함수와 다르다.
+
+[CreateFont()] : 폰트 생성 함수
+또다른 방법으로 LOGFONT 구조체를 채운 후 CreateFontIndirect의 인수로 넘기면 된다.
+
+[COLORREF SetTextColor(HDC hdc, COLORREF crColor) : 글자색 설정]
+[COLORREF SetBkColor(HDC hdc, COLORREF crColor) : 글자 뒤 배경색 설정]
+
+[int SetBkMode(HDC hdc, int iBkMode) : 글자 뒤 배경 색상을 사용할 방법 설정]
+Default : OPAQUE이다. 불투명한 배경을 사용
+TRANSPARENT : 투명한 배경색상 사용
+
+
+[과제] RopMode2
+메뉴에 자유 곡선, 선, 원, 사각형 항목을 만들고 선택한 항목에 따라 도형을 그려 보아라. 마우스가 이동할 때 선택한 도형을 그리면 된다.
+자유 곡선을 그리는 코드는 4장의 Mouse 예제를 참조하고 직선, 원, 사각형을 그리는 코드는 RopMode 예제를 참조하라. 그려진 화면을
+저장할 필요는 없으며 화면을 복구하지 않아도 상관없다. 메뉴 항목은 적절한 쇼트컷과 엑셀러레이터를 제공해야 한다.
