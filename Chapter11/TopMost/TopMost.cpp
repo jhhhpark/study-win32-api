@@ -1,11 +1,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include "resource.h"
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 HINSTANCE g_hInst;
 HWND hWndMain;
-LPCTSTR lpszClass = TEXT("Class");
+LPCTSTR lpszClass = TEXT("TopMost");
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	LPSTR lpszCmdParam, int nCmdShow)
@@ -24,10 +23,12 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	wndClass.lpfnWndProc = WndProc;
 	wndClass.lpszClassName = lpszClass;
 	wndClass.lpszMenuName = NULL;
-	wndClass.style = CS_HREDRAW | CS_VREDRAW;
+	wndClass.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
 	RegisterClass(&wndClass);
 
-	hWnd = CreateWindow(lpszClass, lpszClass, WS_OVERLAPPEDWINDOW,
+	// 탑 모스트 윈도우 활성/비활성 여부를 떠나서 항상 다른 윈도우보다 수직적으로 가장 위에 위치한다.
+	// 탑 모스트 윈도우끼리는 가리는게 가능함.
+	hWnd = CreateWindowEx(WS_EX_TOPMOST, lpszClass, lpszClass, WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 		NULL, (HMENU)NULL, hInstance, NULL);
 	ShowWindow(hWnd, nCmdShow);

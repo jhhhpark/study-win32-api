@@ -1,11 +1,13 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include "resource.h"
+
+#define bElipse  0
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK ChildProc(HWND, UINT, WPARAM, LPARAM);
 HINSTANCE g_hInst;
 HWND hWndMain;
-LPCTSTR lpszClass = TEXT("Class");
+LPCTSTR lpszClass = TEXT("WndExtra");
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	LPSTR lpszCmdParam, int nCmdShow)
@@ -27,6 +29,13 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	wndClass.style = CS_HREDRAW | CS_VREDRAW;
 	RegisterClass(&wndClass);
 
+	wndClass.cbWndExtra = 4;
+	wndClass.hbrBackground = (HBRUSH)GetStockObject(LTGRAY_BRUSH);
+	wndClass.hCursor = LoadCursor(NULL, IDC_CROSS);
+	wndClass.lpfnWndProc = ChildProc;
+	wndClass.lpszClassName = TEXT("ChildCls");
+	RegisterClass(&wndClass);
+
 	hWnd = CreateWindow(lpszClass, lpszClass, WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 		NULL, (HMENU)NULL, hInstance, NULL);
@@ -43,16 +52,51 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 {
+	int x, y;
+	switch (iMessage)
+	{
+	case WM_CREATE:
+		for (x = 0; x < 300; x += 100)
+		{
+			for (y = 0; y < 300; y += 100) {
+				CreateWindow("ChildCls", NULL, WS_CHILD | WS_VISIBLE,
+					x, y, 100, 100, hWnd, (HMENU)NULL, g_hInst, NULL);
+			}
+		}
+		return 0;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return 0;
+	}
+
+	return (DefWindowProc(hWnd, iMessage, wParam, lParam));
+}
+
+LRESULT CALLBACK ChildProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
+{
 	HDC hdc;
 	PAINTSTRUCT ps;
 
 	switch (iMessage)
 	{
 	case WM_CREATE:
-		hWndMain = hWnd;
+		SetWindowLong(hWnd, bElipse, (LONG)TRUE);
 		return 0;
+	case WM_LBUTTONDOWN:
+		SetWindowLong(hWnd, bElipse, !GetWindowLong(hWnd, 0));
+		InvalidateRect(hWnd, NULL, TRUE);
+		break;
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
+		if ((BOOL)GetWindowLong(hWnd, bElipse) == TRUE)
+		{
+			Ellipse(hdc, 10, 10, 90, 90);
+		}
+		else
+		{
+			MoveToEx(hdc, 10, 10, NULL); LineTo(hdc, 90, 90);
+			MoveToEx(hdc, 10, 90, NULL); LineTo(hdc, 90, 10);
+		}
 		EndPaint(hWnd, &ps);
 		return 0;
 	case WM_DESTROY:

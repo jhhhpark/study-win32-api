@@ -1,11 +1,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include "resource.h"
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 HINSTANCE g_hInst;
 HWND hWndMain;
-LPCTSTR lpszClass = TEXT("Class");
+LPCTSTR lpszClass = TEXT("CsNoClose");
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	LPSTR lpszCmdParam, int nCmdShow)
@@ -24,7 +23,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	wndClass.lpfnWndProc = WndProc;
 	wndClass.lpszClassName = lpszClass;
 	wndClass.lpszMenuName = NULL;
-	wndClass.style = CS_HREDRAW | CS_VREDRAW;
+	wndClass.style = CS_NOCLOSE;
 	RegisterClass(&wndClass);
 
 	hWnd = CreateWindow(lpszClass, lpszClass, WS_OVERLAPPEDWINDOW,
@@ -45,6 +44,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 {
 	HDC hdc;
 	PAINTSTRUCT ps;
+	CONST TCHAR* Mes = TEXT("공백키를 누르면 프로그램이 종료됩니다.");
 
 	switch (iMessage)
 	{
@@ -53,7 +53,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		return 0;
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
+		TextOut(hdc, 10, 10, Mes, lstrlen(Mes));
 		EndPaint(hWnd, &ps);
+		return 0;
+	case WM_KEYDOWN:
+		if (wParam == VK_SPACE)
+		{
+			DestroyWindow(hWnd);
+		}
 		return 0;
 	case WM_DESTROY:
 		PostQuitMessage(0);

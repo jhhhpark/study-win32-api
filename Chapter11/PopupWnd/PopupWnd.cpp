@@ -1,11 +1,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include "resource.h"
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 HINSTANCE g_hInst;
 HWND hWndMain;
-LPCTSTR lpszClass = TEXT("Class");
+LPCTSTR lpszClass = TEXT("PopupWnd");
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	LPSTR lpszCmdParam, int nCmdShow)
@@ -27,8 +26,8 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	wndClass.style = CS_HREDRAW | CS_VREDRAW;
 	RegisterClass(&wndClass);
 
-	hWnd = CreateWindow(lpszClass, lpszClass, WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+	hWnd = CreateWindow(lpszClass, lpszClass, WS_POPUPWINDOW,
+		10, 10, 200, 100,
 		NULL, (HMENU)NULL, hInstance, NULL);
 	ShowWindow(hWnd, nCmdShow);
 
@@ -45,6 +44,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 {
 	HDC hdc;
 	PAINTSTRUCT ps;
+	CONST TCHAR* Mes = TEXT("팝업 윈도우입니다.");
+	UINT nHit;
 
 	switch (iMessage)
 	{
@@ -53,8 +54,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		return 0;
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
+		SetBkMode(hdc, TRANSPARENT);
+		TextOut(hdc, 10, 10, Mes, lstrlen(Mes));
 		EndPaint(hWnd, &ps);
 		return 0;
+	case WM_NCHITTEST:
+		nHit = DefWindowProc(hWnd, iMessage, wParam, lParam);
+		if (nHit == HTCLIENT)
+		{
+			nHit = HTCAPTION;
+		}
+		return nHit;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
