@@ -1,0 +1,210 @@
+[윈도우 관리]
+윈도우 관련 함수들은 사용 빈도가 높으므로 암기하는게 좋다.
+
+윈도우를 생성하는 함수
+- CreateWindow ~ Ex()
+
+윈도우를 파괴하는 함수
+- CloseWindow(HWND hWnd), DestroyWindow(HWND hWnd)
+
+DestroyWindow() 함수의 경우 파괴되기 직전에 많은 일을 한다.
+* WM_DESTROY 메시지를 보내 종료 처리를 할 기회를 주고 
+키보드 포커스를 버리고, 메뉴를 파괴하고, 메시지 큐를 완전히 비운다.
+동작중인 타이머가 있으면 파괴하고 클립보드 소유권을 제거한다.
+더 중요한 것은?
+파괴되는 윈도우가 자식 윈도우를 가진 부모 윈도우이거나 소유자 윈도우일 경우,
+각 차일드에게도 WM_DESTROY 메시지가 전달된다.
+항상 윈도우는 자신의 직계 자식만 파괴하므로, 
+손자 윈도우는 차일드로부터 WM_DESTROY 메시지를 받아 파괴된다는 것을 알 수 있다.
+
+이런식으로 DestroyWindow() 함수는 
+연쇄적으로 자신과 자신의 차일드, 그리고 그 후손을을 차례대로 파괴한다.
+
+malloc()/free(), SetTimer()/KillTimer() 처럼 GDI 오브젝트도 이런 예가 많다.
+만든 후 사용하다가 더 이상 필요없어진 윈도우도 마찬가지로 파괴해야 한다.
+그런데 DestroyWindow()를 잘 쓰진 않는다.
+이유는 메인 윈도우가 파괴되면 자연스럽게 차일드도 같이 파괴되고,
+게다가 메인 윈도우도 WM_CLOSE의 디폴트 처리에 의해 자동으로 파괴되며
+설령 파괴되지 않더라도 메인 윈도우를 만든 인스턴스가 종료되면 메인 윈도우도 함께 종료된다.
+
+
+[위치와 크기]
+Z order(Z 순서) : 윈도우의 수직적 위치 관계
+사용자의 시선쪽이 Z축이다.
+Z순서는 활성화된 Window가 가장 위에 있으며 활성 상태가 바뀌면 최근에 활성화된 순서대로 제조정된다.
+
+윈도우의 좌표 구하기
+- BOOL GetWindowRect(HWND hWnd, LPRECT lpRect);
+- BOOL GetClientRect(HWND hWnd, LPRECT lpRect);
+GetWindowRect() : 대상 윈도우의 좌표 정보를 Rect구조체에 채워준다. 항상 스크린을 기준으로 하는 좌표이다.
+GetClientRect() : 대상 윈도우의 작업영역의 크기를 구한다. 작업 영역의 좌상단 좌표는 항상 (0, 0)이다.
+
+- BOOL MoveWindow(HWND hWnd, int X, int Y, int nWidth, int nHeight, BOOL bRepaint);
+: 인수가 LTWH 임, Rectangle(), Ellipse() 함수의 경우 인수가 LTRB임
+
+- BOOL SetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags);
+: MoveWindow() 함수는 단순히 위치와 크기를 변경할 수 있는데 비해 이 함수는 윈도우의 Z순서를 변경할 수 있다.
+hWndInsertAfter 인수부분이 Z순서 결정하는 부분(HWND_XXX), uFlags는 함수의 동작 방식 설정 부분(SWP_XXX)
+
+- HDWP BeginDeferWindowPos(int nNumWindows);
+- HDWP DeferWindowPos(HDWP hWndPosInfo, HWND hWnd, HWND hWndInstertAfter, int x, int y, int cx, int cy, UINT uFlags);
+- BOOL EndDeferWindowPos(HDWP hWndPosInfo);
+: 일괄적으로 여러 개의 윈도우 위치를 한꺼번에 옮겨 배치할 경우 위의 세 함수가 사용된다.
+DeferWindowPos() 함수는 복수 윈도우의 크기와 위치를 저장하기 위한 메모리를 할당한다.
+이 메모리의 핸들은 HDWP 타입으로 리턴되는데 OS가 내부적으로 관리하는 불투명한 구조체 타입이므로 사용자가 직접 조작할 수는 없다.
+인수로는 조정할 윈도우의 갯수를 전달, DeferWindowPos() 함수는 윈도우의 배치 상태를 배열에 기록함, 이동 대상의 윈도우는 차일드 윈도우여야 함
+EndDeferWindowPos() 함수는 이렇게 만들어진 정보대로 윈도우를 일괄적으로 재배치함
+
+- BOOL GetWindowPlacement(HWND hWnd, WINDOWPLACEMENT *lpwndpl);
+- BOOL SetWindowPlacement(HWND hWnd, CONST WINDOWPLACEMENT *lpwndpl);
+: 이 함수는 윈도우의 위치, 크기는 물론이고 최대, 최소화 상태를 한꺼번에 조사 및 변경 할 수 있다.
+시스템은 내부적으로 두쌍의 좌표 + 사각 영역으로 기억하고 있음(최대화 좌표, 최소화 좌표, 노말 영역)
+ex) 메모장
+메모장을 최대화 시키면 (0, 0)으로 이동하면서 work area를 가득 채운다.
+다시 원상복귀 하면 노멀 좌표로 복귀하고 원래 자신이 있었던 자리로 정확하게 찾아간다.
+결국 윈도우를 최대, 최소화를 할 때 좌표와 영역을 하나의 상태로 저장하여 관리한다.
+
+여기서 쓰는 구조체는 WINDOWPLACEMENT인데 여기서 쓰는 좌표들은 work area 좌표임
+대부분 위 두 함수는 종료 직전의 상태와 조표를 저장해 두었다가 위 위치에서 다시 시작하기 위해 이 두 함수와 레지스트리를 사용한다.
+
+
+[화면 좌표와 작업영역 좌표(클라이언트 영역 좌표)]
+좌표를 다루는 함수나 메시지들은 어떤 경우 화면 좌표, 작업영역 좌표를 다룬다.
+* GetCursorPos() 함수는 마우스 커서의 현재 위치를 구하는데 항상 화면 좌표이며
+* WM_LBUTTONDOWN 메시지의 lParam으로 전달되는 좌표는 항상 작업영역 좌표이다.
+* GetWindowRect() 함수가 구하는 좌표는 윈도우의 화면상 위치, 그러니까 타이틀바의 모서리 위치이지
+작업영역의 위치가 아니다. 그래서 만약 어떤 윈도우의 클라이언트 영역의 스크린 좌표를 구하고 싶다면
+이 함수를 호출하고, 타이틀 바의 높이, 메뉴바의 높이, 경계선의 두께 등을 더해야 
+비로소 작업영역의 원점 좌표가 스크린상의 어디쯤인지 알 수 있다.
+
+이런 값들은 사실 제어판에서 설정한 옵션에 따라 달라지기 때문에 GetSystemMetrix()로 일일이 조사해야 정확한 값을 알 수 있다.
+이걸 해결해주는 두 함수가 있다.
+- BOOL ScreenToClient(HWND hWnd, LPPOINT lpPoint);
+- BOOL ClientToScreen(HWND hWnd, LPPOINT lpPoint);
+
+
+[작업영역(Client Area) 크기 설정]
+GetWindow(Client)Rect() 함수의 반대 함수는 SetWindow(Client)Rect() 가아니라!!!!
+MoveWindow()이며, GetClientRect()는 반대함수가 없음.
+
+만약 꼭 작업영역의 크기를 맞추어야 한다면 다음 함수를 사용한다.
+- BOOL AdjustWindowRect(LPRECT lpRect, DWORD dwStyle, BOOL bMenu);
+- BOOL AdjustWindowRectEx(LPRECT lpRect, DWORD dwStyle, BOOL bMenu, DWORD dwExStyle);
+: 이 함수는 원하는 작업영역의 크기를 주면 작업영역 크기에 맞는 윈도우 크기를 계산한다.
+(만약 스크롤 스타일 WS_H(V)SCROLL을 가진 윈도우의 경우에는 직접 계산해야함.)
+
+
+[상태 조사 및 변경]
+- int GetWindowText(HWND hWnd, LPTSTR lpString, int nMaxCount);
+- BOOL SetWindowText(HWND hWnd, LPTSTR lpString);
+- int GetWindowTextLength(HWND hWnd);
+: 일반적인 윈도우뿐만 아니라 버튼 윈도우의 캡션을 변경하거나 
+에디트에 입력된 문자들을 조사하고자 할 때도 이 함수들을 사용한다. (디버깅용으로도 씀)
+에디트의 경우 굉장히 긴 문자열을 가질 수도 있으므로 GetWindowTextLength() 함수로 
+길이를 먼저 조사하여 충분한 메모리를 할당한 후 텍스트를 읽어야 한다.
+
+- BOOL IsWindow(HWND hWnd);
+- BOOL IsWindowVisible(HWND hWnd);
+- BOOL IsWindowEnabled(HWND hWnd);
+- BOOL IsChild(HWND hWndParent, HWND hWnd);
+- BOOL IsIconic(HWND hWnd);
+- BOOL IsZoomed(HWND hWnd);
+: 단순하기 때문에 자세한 설명은 생략!
+IsWindow()함수는 윈도우 핸들의 유효성을 체크하는 함수이다.
+사실 이 함수들의 진위여부에 따라서 처리하기 보다는 메시지처리 부분에서 수행하는게 더 낫다.
+
+- BOOL EnableWindow(HWND hWnd, BOOL bEnabled);
+- BOOL ShowWindow(HWND hWnd, int nCmdShow);
+: ShowWindow() 함수는 윈도우를 숨기거나 보이는 간단한 동작부터 최소화, 최대화 등의 작업까지 가능하며
+EnableWindow() 함수는 윈도우를 사용 금지 또는 허가한다.
+(사용 금지 상태 : 다이얼로그에서 삭제, 적용 등의 버튼처럼 흐리게 표시된 상태가 금지된 상태이다.)
+
+
+[Z순서 변경]
+: 화면상위 윈도우끼리는 상호 겹칠 수 있는데 이때 수직적인 윈도우의 위치를 Z순서(Z Order)라고 한다.
+X, Y축으로 구성된 2차원 화면 공간에서 화면에 수직인 사용자 시선쪽을 Z축으로 가정하여 Z축상의 위치를 칭하는 개념이다.
+* 운영체제는 윈도우의 Z순서를 하나의 리스트로 관리한다. 이 리스트는 윈도우의 종류에 따라 Z순서를 관리하는데 
+탑 모스트 윈도우가 제일 위쪽에 배치되며 일반 윈도우가 그 뒤에 활성화된 순서대로 배치된다.
+
+Z순서의 경우 WS_EX_TOPMSOT를 가진 윈도우는 다른 윈도우보다 Z축의 위쪽에 배치되는데,
+이 속성값을 변경시에는 SetWindowLong()함수가 아니라 SetWindowPos() 함수를 통해 Z축을 변경해야한다.(명심!)
+왜냐하면 탑 모스트는 윈도우 자신만의 속성이 아니라 다른 윈도우와의 관계이기 때문에 스타일을 변경한 후 Z순서까지 당장 바꿔야 한다.
+차일드의 경우 Z순서를 통제하기 어려우므로 겹치지 않도록 해야함.
+
+- 포그라운드 : 사용자가 지금 이 프로그램을 사용하고 있는 상태라는 뜻으로 한번에 하나의 프로그램만 포그라운드 될 수 있다.
+포그라운드 프로세스는 사용자를 직접 대면하고 있는 중이므로 다른 프로세스에 비해 우선 순위가 두 단계 더 높아서 CPU 시간을 더 많이 할당받는다.
+- 백그라운드 : 실행중이기는 하지만 사용자가 당장 관심을 보이지 않는 프로세스이다. 지금 워드 작업을 하고 있다면
+탐색기나 웹 브라우저 등은 백그라운드에서 실행 대기중이다. 포그라운드 프로세스보다 CPU 시간을 덜 받으며 
+포그라운드 프로세스가 시간을 양보해야만 자신의 코드를 처리할 수 있다.
+
+(포그라운드 상태를 조사, 선택하는 함수)
+- BOOL SetForegroundWindow(HWND hWnd);
+- HWND GetForegroundWindow(VOID);
+: SetForegroundWindow() 함수는 이 윈도우가 속한 스레드를 포그라운드 상태로 만들고 메인 윈도우를 활성화한다.
+단, 아무나 이 함수를 호출할 수 있는 것은 아니며 자신이 포그라운드이거나 
+포그라운드 프로세스가 없을 때 또는 핫키 등의 입력 메시지를 받았을 때만 다른 스레드를 포그라운드로 만들 수 있다.
+자신이 백그라운드에 있을 때는 이 함수를 통해 프로그램을 마음대로 스위칭 할 수 없는데 왜냐하면 사용자의 허락없이
+임의의 프로그램이 마음대로 활성화되어서는 안되기 때문이다.
+
+>>SetForeground 예제를 실행해보면
+프로그램이 포그라운드 일 떄 메모장으로 포그라운드 전환될 수 있는데, 
+실행 프로그램이 포그라운드가 아닐때는 동작하지 않는다는 것을 알 수 있다.
+타이머를 통해서 현재 상태에 따라 어떻게 동작하는지를 보여주었다.
+BringWindowToTop() 함수는 지정한 위도우를 Z순서의 제일 처음으로 이동시키는데 
+마찬가지로 포그라운드 스레드가 호출할 때만 동작한다.
+- HWND SetActiveWindow(HWND hWnd) : 같은 스레드내의 윈도우에 대해서만 동작한다.
+- HWND GetActiveWindow(VOID) : 
+: 위 두 함수는 활성 윈도우를 변경하거나 조사한다.
+
+
+
+[윈도우 찾기]
+- HWND FindWindow(LPCTSTR lpClassName, LPCTSTR lpWindowName);
+: 최상위 윈도우중에 조건에 맞는 윈도우를 검색하는데 윈도우 클래스 이름이나 캡션을 조건으로 지정한다.
+둘 중 하나만 지정하면 지정된 이름으로 찾게되는데 둘 다 지정하면 클래스 이름으로 찾게 된다.(대소문자 구분 X, 못찾으면 NULL 반환)
+(지정하는 조건이 단순하기에 캡션 이름(lpWindowName)으로 찾을 경우 문자열로 지정한 것과 완벽하게 동일해야 하므로 )
+- HWND FindWindowEx(HWND hwndParent, HWND hwndChildAfter, LPCTSTR lpszClass, LPCTSTR lpszWindow);
+: hwndParent에 속한 차일드 윈도우를 검색해내며 이 인수가 NULL일 경우 데스크탑 윈도우의 차일드를 검색한다.
+HWNDcHILDaFTER 인수는 검색을 시작할 차일드 윈도우를 지정하는데 이 차일드의 Z순서 다음 차일드부터 검색된다.
+연속적인 검색을 위해서 시작 윈도우는 검색 대상에서 제외하는 것이 편리하다. 이 인수가 NULL이면 첫 번째 차일드부터 검색을 시작한다.
+나머지 인수는 FindWindow()와 동일하다.
+
+- HWND WindowFromPoint(POINT Point);
+: Point 화면 좌표 아래에 있는 윈도우를 조사해서 그 핸들을 리턴한다.(단, 숨겨진 윈도우, 사용금지된 윈도우는 검색 대상 제외)
+Point위치에 스태틱 컨트롤이 있는 경우는 그 아래의 윈도우가 조사된다. 이 함수는 스파이같이 다른 윈도우의 속성을 조사하는 유틸리티나 드래그 & 드롭시
+드롭 윈도우를 조사할 때 여러 모로 쓸 모가 많다.
+(WindowHandle만 있으면 스타일, 메모리, 윈도우 프로시저 주소까지 알아낼 수 있다)
+
+- HWND ChildWindowFromPoint(HWND hWndParent, POINT point);
+- HWND ChildWindowFromPointEx(HWND hwndParent, POINT pt, UINT uFlags);
+: 이 때 Point 좌표는 부모 hWndParent 부모 윈도우의 작업영역 좌표이다.
+Point가 작업 영역의 범위를 벗어나면 이 함수는 NULL을 리턴하며 차일드 윈도우 위가 아니라면 부모 윈도우 자신의 핸들을 리턴한다.
+이 함수는 숨겨지거나 사용 금지된 윈도우까지도 검색해 내는데 ~EX함수는 UFlags에 검색 제외 조건을 지정함으로써 
+특정 조건의 차일드를 검색에서 제외 할 수 있다.
+
+
+[윈도우 열거]
+- BOOL EnumWindows(WNDENUMPROC lpEnumFunc, LPARAM lParam);
+: 이 함수는 존재하는 모든 윈도우를 다 열거한다. 현재 실행중인 모든 최상위 윈도우들을 열거하여 첫 번째 인수로 지정된 콜백함수를 호출한다.
+lParam은 콜백함수로 전달될 사용자 정의 데이터인데 필요없으면 NULL
+
+<콜백 함수 형식>
+BOOL CALLBACK EnumWindowsProc(HWND, hwnd, LPARAM lParam);
+: EnumWindows 함수는 모든 최상위 윈도우를 검색해서 그 핸들을 콜백함수로 전달하된 모든 윈도우를 다 찾거나
+콜백함수가 FALSE를 리턴할 때까지 검색을 계속한다.
+콜백함수는 검색된 윈도우의 핸들을 전달받으므로 모든 윈도우에 대해 모든 작업을 다 할 수 있다. 원하는 윈도우를 찾기 위해
+캡션 문자열을 부분 검색할 수도 있고 좌표를 비교하거나 스타일을 조사하는 것도 가능하다.
+(다 찾기때문에 다소 느리지만 가장 강력한 윈도우 검색 방법)
+
+- BOOL EnumChildWindows(HWND hWndParent, WNDENUMPROC lpEnumFunc, LPARAM lParam);
+- BOOL EnumThreadWindows(DWORD dwThreadId, WNDENUMPROC lpfn, LPARAM lParam);
+: 특정 부모 윈도우의 차일드만 검색해 내거나 스레드에 속한 윈도우의 목록을 조사한다.
+
+
+[과제] ParentCenter
+대화상자의 속성 중에 화면상의 절대 위치를 지정하거나 화면의 중앙에 대화상자가 나타나도록 하는 속성이 있다.
+그러나 부모의 중앙에 나타나는 속성은 없으므로 함수를 직접 만들어 써야 한;다.
+대화상자의 핸들을 주면 이 대화상자를 부모 윈도우의 중앙으로 이동시키는 다음 함수를 구현해 보자.
+[void MoveToParentCenter(HWND hWnd)]
+대화상자의 핸들 하나만을 인수로 취하며 크기는 그대로 유지한 채 부모 윈도우의 정중앙으로 이동시켜야 한다. 보통 대화상자가 초기화되는 시점인
+WM_INITDIALOG에서 이 함수를 호출할 것이다. 만약 부모가 최소화되어 있다면 부모 윈도우를 먼저 복구한 후에 화면 중앙으로 이동해야 한다.
