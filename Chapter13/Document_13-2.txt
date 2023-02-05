@@ -1,0 +1,145 @@
+[메시지 통신]
+윈도우 간의 메시지를 전달 할 때 사용하는 함수
+- BOOL PostMessage(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM, lParam); 
+- LRESULT SendMessage(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM, lParam);
+
+Post의 뜻이 "붙인다"인데, 이 말처럼 즉시 해당 메시지를 큐에 넣고 곧바로 리턴하기 때문에
+다른 작업을 할 수 있지만 큐에 붙어있는 다른 메시지가 있다면 뒤에 붙이 메시지는 곧바로 처리되지 않는다.
+큐에 붙여진 메시지는 GetMessage에 의해 읽혀지고 DispatchMessage에 의해 윈도우 프로시저로 보내져 처리될 것이다.
+따라서 급하지 않고 곧바로 처리를 하지 않아도 된다면 PostMessage 함수로 큐에 붙인다.(메시지 처리 시점을 예측하기 어려움)
+※ wParam이나 lParam 지역 포인터를 사용하면 않된다!!!!
+
+PostMessage의 hWnd에 NULL을 지정할 수 있는데 이러면 응용 프로그램 전반에 걸친 작업 지시를 보낼 때 사용된다.
+대상 윈도우가 없기 때문에 이 메시지는 윈도우 프로시저가 처리할 수 없으면 반드시 메시지 루프에서 직접 처리해야 한다.
+ex)
+while(GetMessage(&Message, NULL, 0))
+{
+	if (Mesasge.message == WM_SOME) {
+		// 직접 처리
+	}
+	else
+	{
+		TrnaslateMessage(&Message);
+		DispatchMessage(&Message);
+	}
+}
+
+PostMessage()함수가 메시지를 붙여넣는 큐가 윈도우를 위한 큐가 아니라 스레드를 위한 큐이기 때문에 이런 기법이 가능하다.
+
+- BOOL PostThreadMessage(DWORD idThread, UINT Msg, WPARAM wParam, LPARAM lParam);
+: 윈도우 핸들 대신 스레드의 ID를 첫 번째 인수로 지정함.
+이때 이 메시지를 받을 스레드는 반드시 스레드 큐를 가지고 있어야 하는데 
+큐를 가지지 않는 작업 스레드(Worker Thread)는 메시지를 받지 못한다.
+
+
+SendMessage()함수는 메시지 큐에 넣는 것이 아니라 곧바로 윈도우 프로시저로 보내 즉각 처리하도록 하며,
+메시지가 완전히 처리되기 전에는 리턴하지 않는다.(블록)
+
+※ 정리
+- PostMessage()는 Thread Message Queue에 메시지를 붙인다.
+- SendMessage()는 윈도우 프로시저로 메시지를 곧바로 보낸다.
+
+
+[메시지 데드락]
+SendMessage() 호출은 곧 서브루틴 호출과 대등하며 실제로 WndProc의 case 하나를 호출하는 것과 같다
+>>> DeadLock, DeadLock2 함께 실행
+
+Send2에서 명령 처리를 위해 모달 다이얼그램을 열었고, 
+사용자가 확인 버튼을 누르기 전에는 모달 다이얼그램을 닫지 않으면 WndProc가 리턴하지 못하므로
+Send1은 더이상 SendMessage() 호출도 리턴하지 못하고 무한정 대기하게 된다.
+만약 Send1에서 Timer를 돌리고 있으면 이작업들도 전부 중지된다.(모달 다이어그램 확인 해야함)
+
+그래서 이부분을 해결하는 방법은 많은데
+모달 다이어그램을 다른 윈도우에서 띄우는것이아니라 자기 자신으로부터 띄우는 것이다.
+이러면 메시지 박스는 실행중에 메시지 루프를 계속 돌리는 Message Pumping을 한다.
+메시지 펌핑은 같은 스레드 내의 윈도우만을 대상으로 하기 때문에 
+다른 스레드의 윈도우에 대한 메시지는 모달 대화상자가 닫히기 전에는 보내지지 않는다.
+
+
+또다른 방법으로...
+메시지가 다른 스레드로부터 전달되었을 때는 즉시 리턴한 후 다음 작업을 계속하는 것이다.
+메시지가 다른 스레드로부터 왔는지는 InSendMessage()함수로 조사할 수 있다.
+
+- BOOL ReplyMessage(LRESULT lResult);
+: 이 함수는 SendMessage로 전달된 메시지를 즉시 리턴하는데 lResult는 SendMessage로 리턴될 값이다.
+메시지를 받은 쪽에서 이 함수를 호출하면 SendMessage를 호출한 윈도우는 즉시 다른 일을 할 수 있다.
+물론 ReplyMessage는 윈도우 프로시저를 리턴하는 것은 아니기 때문에 이 윈도우도 계속 작업을 할 수 있다.
+>>> DeadLock, DeadLock2 참고
+
+ex)
+if (InSendMessage() == TRUE)
+{
+	ReplyMessage(LRESULT(반환 결과));
+	....
+}
+
+
+- BOOL SendNorifyMessage(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+: SendNotifyMessage()는 hWnd가 다른 스레드의 윈도우 핸들인 경우 대기를 하지 않고 즉시 리턴한다.
+이 함수는 메시지가 단순한 통지의 성격을 가지고 있을 때, 즉 끝까지 처리되기를 기다릴 필요가 없을 때 사용한다.
+
+- LRESULT SendMessageTimeout(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam,
+	UINT fuFlags, UINT uTimeout, PDWORD_PTR lpdwResult);
+: SendMessageTimeout() 함수는 지정한 경과 시간 이상이 지나면 메시지의 처리 여부에 상관없이 
+즉시 리턴함으로써 메시지를 보낸 윈도우가 무한히 대기하지 않게 한다.
+
+과거에는 이런 메시지 통신이 굉장히 중요했었고 메시지만으로도 대부분의 통신을 할 수 있었지만
+32비트 이후의 환경에서는 메시지 통신을 대체할 수 있는 IPC 방법이 많이 개발되어 이런 문제가 거의 발생하지 않는다.
+
+[메시지 콜백]
+- BOOL SendMessageCallback()
+: 윈도우로 메시지를 보낸 후 즉시 리턴하되 콜백함수를 등록해 놓고 메시지 처리가 끝나면 콜백함수를 호출하도록 시스템에게 부탁한다.
+즉시 리턴하므로 메시지를 보내는 스레드는 곧바로 다른 작업을 할 수 있으며 메시지 처리가 끝난 후 콜백함수가 호출되므로
+처리 후의 시점도 정확하게 파악할 수 있다는 장점이 있다.
+
+- VOID CALLBACK SendAsyncProc(HWND hwnd, UINT uMsg, ULONG_PTR dwData, LRESULT lResult);
+
+※ 정리
+- SendNotifyMessage(), SendMessageTimeout(), ReplayMessage(), SendMessageCallback() 이 함수들은 
+다른 스레드의 윈도우로 메시지를 보냈을 때 송신측의 블록과 관련된 함수들이다.
+
+
+
+[브로드 캐스팅]
+: 메시지는 일반적으로 한 윈도우에서 다른 윈도우로 직접 전달되는 것이 보통이다. 즉, 1:1통신에 사용된다.
+BroadCasting(브로드캐스팅)이란 복수 개의 수신자에게 한꺼번에 메시지를 보내는 동작을 말하는데
+말 그대로 실행중인 모든 윈도우에게 메시지로 방송을 하는 것이다.
+이때 수신 대상 윈도우의 종류는 응용 프로그램은 물론, 시스템 디바이스 드라이버, 네트워크 드라이버, 
+기타 설치 가능한 디바이스 드라이버도 포함된다.
+
+실행중인 모든 프로세스가 영향을 받는 중대한 변화가 생겼을 때 이 변화를 만든 프로그램은
+관련자들에게 브로드캐스팅을 하여 제대로 변화를 감지할 수 있도록 해야 한다.
+예를 들어 디스크 드라이버를 관리하는 FDD 모듈이 플로피 디스크가 교체된 것을 알았을 때
+이 사실을 알아야 할 모든 프로세스(예를 들어 탐색기나 백업 프로그램 등등)에게 브로드캐스팅을 한다.
+- long BroacastSystemMessage(DWORD dwFlags, LPDWORD lpdwRecipents, UINT uiMessage, WPARAM wParam, LPARAM lParam);
+: 대상 윈도우 핸들이 없으면 대신 수신자의 종류를 지정할 수 있는 인수가 있고
+옵션을 지정할 수 있는 프래그가 있다. 가능한 수신자 종류는 다음;과 같으며 복수 개를 지어할 수도 있다.
+
+<수신자>
+- BSM_ALLCOMPONENTS : 모든 시스템 요소
+- BSM_ALLDESKTOPS : 모든 데스크탑
+- BSM_APPLICATIONS : 응용 프로그램
+- BSM_INSTALLABLEDRIVERS : 설치 가능한 드라이버
+- BSM_NETDRIVER : 네트워크 드라이버
+- BSM_VXDS : 시스템 디바이스 드라이버
+
+복수 개의 수신자가 지정되어 있을 경우 
+시스템 디바이스 드라이버, 네트워크 드라이버, 설치 가능한 드라이버, 응용 프로그램 순으로 메시지를 받는다.
+이 함수 외에도 SendMessage(또는 유사 함수)의 대상 윈도우 인수인 hWnd에 
+HWND_BROADCAST를 지정함으로써 모든 최상위 윈도우에게 브로드캐스팅을 할 수도 있다.
+
+새로운 글꼴이 설치되었거나 시스템의 해상도가 변경되었을 때, 이동식 장치가 설치되었을 때도 마찬가지로
+브로드 캐스팅을 하는데 글꼴 목록에 영향을 받는 워드 프로세스들은 새로운 글꼴이 설치 되는 즉시 이를 눈치채는 것을 확인할 수 있다.
+예를 들어 USB 장치가 추가되면 USB 드라이버 장치가 추가되었다는 사실을 방송하고 
+USB 장치 추가에 영향을 받는 탐색기나 디스크 관리 프로그램 등은
+이 방송을 듣고 드라이버 목록을 갱신한다.
+응용 프로그램이 일일이 장치의 추가, 제거를 감시하는 것은 아니다.
+
+이런 프로그램들은 시스템이 보내는 글꼴 변경 방송에 대해 항상 신경을 쓰고 있다가 새로운 글꼴이 설치되는 즉시 목록을 다시 조사하는 것이다.
+응용 프로그램은 시스템의 설정이 변경되었을 때 이런 방송에 귀를 기울여야 할 뿐만 아니라
+자신이 변화를 유발시켰을 때 다른 프로그램을 위해 직접 방송을 해야 한다.
+그렇지 않으면 다른 프로그램들은 시스템의 변경 사실을 알지 못할 것이다.
+
+※ 정리
+- BroadCasting : 변경 사항에 대해서 복수의 수신측에 알리기 위한 통신 방식이다.
+기본적으로는 수신측의 수신 여부에 상관 없이 복수의 수신측에 알린다는 것이 주 목적이다.
